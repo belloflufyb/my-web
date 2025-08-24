@@ -1,0 +1,339 @@
+<!DOCTYPE html>
+<html lang="th">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width-device-width, initial-scale=1.0">
+    <title>City KPI Dashboard</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Sarabun', sans-serif;
+        }
+
+        .chart-container {
+            position: relative;
+            margin: auto;
+            height: 60vh;
+            width: 80vw;
+            max-width: 600px;
+        }
+    </style>
+</head>
+
+<body class="bg-gray-100 text-gray-800">
+
+    <div class="container mx-auto p-4 sm:p-6 md:p-8">
+        <header class="text-center mb-8">
+            <h1 class="text-3xl md:text-4xl font-bold text-gray-900">แดชบอร์ดเปรียบเทียบตัวชี้วัดเมือง</h1>
+            <p class="text-gray-600 mt-2">สำรวจและเปรียบเทียบประสิทธิภาพของเมืองต่างๆ ผ่านตัวชี้วัดที่สำคัญ</p>
+        </header>
+
+        <!-- Summary Section -->
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <h2 class="text-2xl font-bold mb-4 text-center">สรุปภาพรวมรายตัวชี้วัด (KPI)</h2>
+            <div class="space-y-8">
+                <div>
+                    <h3 class="text-xl font-bold mb-3 text-center text-blue-700">ด้านภูมิศาสตร์และสิ่งแวดล้อม</h3>
+                    <div id="summary-geo" class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-8"></div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-3 text-center text-red-700">ด้านโครงสร้างพื้นฐาน</h3>
+                    <div id="summary-inf" class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-8"></div>
+                </div>
+                <div>
+                    <h3 class="text-xl font-bold mb-3 text-center text-green-700">ด้านสังคมและผู้คน</h3>
+                    <div id="summary-ppl" class="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-8"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Single City View -->
+        <div class="bg-white p-6 rounded-xl shadow-lg mb-8">
+            <h2 class="text-2xl font-bold mb-4 text-center">ภาพรวมข้อมูลรายเมือง (เลือกได้หลายเมือง)</h2>
+            <div id="city-selection-container"
+                class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-4 max-h-48 overflow-y-auto p-3 border rounded-lg bg-gray-50">
+                <!-- Checkboxes for Radar Chart -->
+            </div>
+            <div class="text-center mb-6">
+                <button id="clear-radar-selection-btn"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">ล้างค่า</button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 items-center">
+                <div class="chart-container mx-auto" style="max-width: 450px;">
+                    <canvas id="radar-chart"></canvas>
+                </div>
+                <div id="kpi-details-wrapper">
+                    <div id="kpi-details" class="max-h-[60vh] overflow-y-auto pr-2">
+                        <!-- KPI details -->
+                    </div>
+                    <div id="kpi-details-placeholder"
+                        class="hidden text-center text-gray-500 p-8 border-2 border-dashed rounded-lg">
+                        <p>เลือก 1 เมืองเพื่อดูรายละเอียดรายตัวชี้วัด</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Comparison View -->
+        <div class="bg-white p-6 rounded-xl shadow-lg">
+            <h2 class="text-2xl font-bold mb-4 text-center">เปรียบเทียบระหว่างเมือง (รายตัวชี้วัด)</h2>
+            <div id="comparison-city-selection-container"
+                class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-2 mb-4 max-h-48 overflow-y-auto p-3 border rounded-lg bg-gray-50">
+                <!-- Checkboxes for Comparison Chart -->
+            </div>
+            <div class="text-center mb-6">
+                <button id="clear-comparison-selection-btn"
+                    class="bg-gray-200 text-gray-700 px-4 py-2 rounded-lg hover:bg-gray-300 transition-colors">ล้างค่า</button>
+            </div>
+            <div id="comparison-charts" class="space-y-6">
+                <!-- Comparison charts will be populated by JS -->
+            </div>
+        </div>
+
+    </div>
+
+    <script>
+        // --- DATA ---
+        const kpiData = [
+            // GEO Data
+            { "Code": "GEO1", "KPI Name_TH": "พื้นที่ร่มไม้", "ลำปาง": 1, "ลำพูน": 2, "นนทบุรี": 1, "ปากเกร็ด": 1, "ทุ่งสง": 1, "พนัสนิคม": 3, "ศรีสะเกษ": 3, "สกลนคร": 4, "กาฬสินธุ์": 1, "ร้อยเอ็ด": 1, "สระบุรี": 1, "เชียงราย": 2, "พิษณุโลก": 1, "แพร่": 1, "ชุมพร": 3, "นครสววรค์": 1, "แม่เหียะ": 2, "นครศรีธรรมราช": 1 },
+            { "Code": "GEO2", "KPI Name_TH": "การเข้าถึงสวนสาธารณะ/น้ำ", "ลำปาง": 2, "ลำพูน": 2, "นนทบุรี": 1, "ปากเกร็ด": 2, "ทุ่งสง": 1, "พนัสนิคม": 1, "ศรีสะเกษ": 2, "สกลนคร": 2, "กาฬสินธุ์": 2, "ร้อยเอ็ด": 1, "สระบุรี": 1, "เชียงราย": 1, "พิษณุโลก": 1, "แพร่": 2, "ชุมพร": 1, "นครสววรค์": 1, "แม่เหียะ": 4, "นครศรีธรรมราช": 1 },
+            { "Code": "GEO3", "KPI Name_TH": "การเผชิญน้ำท่วม", "ลำปาง": 5, "ลำพูน": 5, "นนทบุรี": 5, "ปากเกร็ด": 5, "ทุ่งสง": 5, "พนัสนิคม": 5, "ศรีสะเกษ": 5, "สกลนคร": 5, "กาฬสินธุ์": 5, "ร้อยเอ็ด": 5, "สระบุรี": 5, "เชียงราย": 5, "พิษณุโลก": 5, "แพร่": 5, "ชุมพร": 5, "นครสววรค์": 5, "แม่เหียะ": 5, "นครศรีธรรมราช": 5 },
+            { "Code": "GEO4", "KPI Name_TH": "วันที่ร้อนจัด", "ลำปาง": 2, "ลำพูน": 1, "นนทบุรี": 4, "ปากเกร็ด": 4, "ทุ่งสง": 2, "พนัสนิคม": 5, "ศรีสะเกษ": 2, "สกลนคร": 2, "กาฬสินธุ์": 2, "ร้อยเอ็ด": 2, "สระบุรี": 2, "เชียงราย": 5, "พิษณุโลก": 3, "แพร่": 2, "ชุมพร": 3, "นครสววรค์": 1, "แม่เหียะ": 1, "นครศรีธรรมราช": 3 },
+            { "Code": "GEO5", "KPI Name_TH": "เสี่ยงดินถล่ม/แผ่นดินไหว", "ลำปาง": 1, "ลำพูน": 1, "นนทบุรี": 1, "ปากเกร็ด": 1, "ทุ่งสง": 1, "พนัสนิคม": 1, "ศรีสะเกษ": 1, "สกลนคร": 1, "กาฬสินธุ์": 1, "ร้อยเอ็ด": 1, "สระบุรี": 1, "เชียงราย": 1, "พิษณุโลก": 1, "แพร่": 1, "ชุมพร": 1, "นครสววรค์": 1, "แม่เหียะ": 1, "นครศรีธรรมราช": 1 },
+            { "Code": "GEO6", "KPI Name_TH": "เวลาเดินทางไปท่าเรือน้ำลึก", "ลำปาง": 3, "ลำพูน": 2, "นนทบุรี": 5, "ปากเกร็ด": 5, "ทุ่งสง": 5, "พนัสนิคม": 5, "ศรีสะเกษ": 3, "สกลนคร": 3, "กาฬสินธุ์": 3, "ร้อยเอ็ด": 3, "สระบุรี": 5, "เชียงราย": 1, "พิษณุโลก": 4, "แพร่": 3, "ชุมพร": 3, "นครสววรค์": 4, "แม่เหียะ": 2, "นครศรีธรรมราช": 5 },
+            { "Code": "GEO7", "KPI Name_TH": "การเดินทางไปสนามบิน", "ลำปาง": 3, "ลำพูน": 4, "นนทบุรี": 5, "ปากเกร็ด": 5, "ทุ่งสง": 4, "พนัสนิคม": 3, "ศรีสะเกษ": 3, "สกลนคร": 1, "กาฬสินธุ์": 2, "ร้อยเอ็ด": 3, "สระบุรี": 2, "เชียงราย": 1, "พิษณุโลก": 1, "แพร่": 2, "ชุมพร": 2, "นครสววรค์": 2, "แม่เหียะ": 5, "นครศรีธรรมราช": 5 },
+            { "Code": "GEO8", "KPI Name_TH": "ความหนาแน่นของมรดกวัฒนธรรม", "ลำปาง": 1, "ลำพูน": 1, "นนทบุรี": 1, "ปากเกร็ด": 1, "ทุ่งสง": 1, "พนัสนิคม": 1, "ศรีสะเกษ": 1, "สกลนคร": 1, "กาฬสินธุ์": 1, "ร้อยเอ็ด": 1, "สระบุรี": 1, "เชียงราย": 1, "พิษณุโลก": 1, "แพร่": 1, "ชุมพร": 1, "นครสววรค์": 1, "แม่เหียะ": 1, "นครศรีธรรมราช": 1 },
+            // INF Data
+            { "Code": "INF1", "KPI Name_TH": "การเข้าถึงน้ำประปา", "ลำปาง": 4, "ลำพูน": 5, "นนทบุรี": 5, "ปากเกร็ด": 5, "ทุ่งสง": 5, "พนัสนิคม": 5, "ศรีสะเกษ": 5, "สกลนคร": 5, "กาฬสินธุ์": 5, "ร้อยเอ็ด": 5, "สระบุรี": 5, "เชียงราย": 5, "พิษณุโลก": 5, "แพร่": 5, "ชุมพร": 5, "นครสววรค์": 5, "แม่เหียะ": 5, "นครศรีธรรมราช": 5 },
+            { "Code": "INF2", "KPI Name_TH": "การเข้าถึงระบบขนส่งสาธารณะ", "ลำปาง": 1, "ลำพูน": 1, "นนทบุรี": 1, "ปากเกร็ด": 1, "ทุ่งสง": 1, "พนัสนิคม": 1, "ศรีสะเกษ": 1, "สกลนคร": 1, "กาฬสินธุ์": 1, "ร้อยเอ็ด": 1, "สระบุรี": 1, "เชียงราย": 1, "พิษณุโลก": 1, "แพร่": 1, "ชุมพร": 1, "นครสววรค์": 1, "แม่เหียะ": 1, "นครศรีธรรมราช": 1 },
+            { "Code": "INF3", "KPI Name_TH": "ความปลอดภัยบนถนน", "ลำปาง": 4, "ลำพูน": 5, "นนทบุรี": 2, "ปากเกร็ด": 1, "ทุ่งสง": 5, "พนัสนิคม": 5, "ศรีสะเกษ": 5, "สกลนคร": 2, "กาฬสินธุ์": 5, "ร้อยเอ็ด": 4, "สระบุรี": 4, "เชียงราย": 1, "พิษณุโลก": 1, "แพร่": 5, "ชุมพร": 4, "นครสววรค์": 5, "แม่เหียะ": 4, "นครศรีธรรมราช": 3 },
+            { "Code": "INF4", "KPI Name_TH": "จำนวนเตียงโรงพยาบาล", "ลำปาง": 4, "ลำพูน": 2, "นนทบุรี": 2, "ปากเกร็ด": 1, "ทุ่งสง": 3, "พนัสนิคม": 2, "ศรีสะเกษ": 2, "สกลนคร": 3, "กาฬสินธุ์": 2, "ร้อยเอ็ด": 3, "สระบุรี": 2, "เชียงราย": 3, "พิษณุโลก": 4, "แพร่": 4, "ชุมพร": 3, "นครสววรค์": 3, "แม่เหียะ": 1, "นครศรีธรรมราช": 3 },
+            // PPL Data
+            { "Code": "PPL1", "KPI Name_TH": "อัตราพึ่งพิง", "ลำปาง": 3, "ลำพูน": 4, "นนทบุรี": 2, "ปากเกร็ด": 2, "ทุ่งสง": 3, "พนัสนิคม": 4, "ศรีสะเกษ": 3, "สกลนคร": 4, "กาฬสินธุ์": 3, "ร้อยเอ็ด": 2, "สระบุรี": 3, "เชียงราย": 4, "พิษณุโลก": 3, "แพร่": 4, "ชุมพร": 3, "นครสววรค์": 2, "แม่เหียะ": 5, "นครศรีธรรมราช": 3 },
+            { "Code": "PPL2", "KPI Name_TH": "การมีส่วนร่วมแรงงาน", "ลำปาง": 2, "ลำพูน": 3, "นนทบุรี": 4, "ปากเกร็ด": 4, "ทุ่งสง": 2, "พนัสนิคม": 3, "ศรีสะเกษ": 2, "สกลนคร": 2, "กาฬสินธุ์": 2, "ร้อยเอ็ด": 3, "สระบุรี": 3, "เชียงราย": 3, "พิษณุโลก": 4, "แพร่": 2, "ชุมพร": 3, "นครสววรค์": 4, "แม่เหียะ": 1, "นครศรีธรรมราช": 3 },
+            { "Code": "PPL3", "KPI Name_TH": "การศึกษาของแรงงาน", "ลำปาง": 4, "ลำพูน": 4, "นนทบุรี": 5, "ปากเกร็ด": 5, "ทุ่งสง": 3, "พนัสนิคม": 4, "ศรีสะเกษ": 3, "สกลนคร": 4, "กาฬสินธุ์": 3, "ร้อยเอ็ด": 4, "สระบุรี": 4, "เชียงราย": 5, "พิษณุโลก": 5, "แพร่": 4, "ชุมพร": 3, "นครสววรค์": 5, "แม่เหียะ": 4, "นครศรีธรรมราช": 4 },
+            { "Code": "PPL4", "KPI Name_TH": "การจ้างงานนอกระบบ", "ลำปาง": 4, "ลำพูน": 5, "นนทบุรี": 3, "ปากเกร็ด": 3, "ทุ่งสง": 4, "พนัสนิคม": 5, "ศรีสะเกษ": 4, "สกลนคร": 3, "กาฬสินธุ์": 4, "ร้อยเอ็ด": 4, "สระบุรี": 3, "เชียงราย": 5, "พิษณุโลก": 4, "แพร่": 5, "ชุมพร": 4, "นครสววรค์": 3, "แม่เหียะ": 5, "นครศรีธรรมราช": 4 },
+            { "Code": "PPL5", "KPI Name_TH": "ผลิตภาพแรงงาน", "ลำปาง": 3, "ลำพูน": 4, "นนทบุรี": 3, "ปากเกร็ด": 3, "ทุ่งสง": 4, "พนัสนิคม": 4, "ศรีสะเกษ": 3, "สกลนคร": 4, "กาฬสินธุ์": 3, "ร้อยเอ็ด": 3, "สระบุรี": 4, "เชียงราย": 4, "พิษณุโลก": 3, "แพร่": 4, "ชุมพร": 4, "นครสววรค์": 3, "แม่เหียะ": 5, "นครศรีธรรมราช": 3 },
+            { "Code": "PPL6", "KPI Name_TH": "สัดส่วนรายได้ท้องถิ่น", "ลำปาง": 4, "ลำพูน": 4, "นนทบุรี": 5, "ปากเกร็ด": 5, "ทุ่งสง": 3, "พนัสนิคม": 4, "ศรีสะเกษ": 3, "สกลนคร": 3, "กาฬสินธุ์": 3, "ร้อยเอ็ด": 4, "สระบุรี": 4, "เชียงราย": 5, "พิษณุโลก": 5, "แพร่": 4, "ชุมพร": 3, "นครสววรค์": 5, "แม่เหียะ": 5, "นครศรีธรรมราช": 4 }
+        ];
+
+        const cityNames = Object.keys(kpiData[0]).filter(key => !["Code", "KPI Name_TH"].includes(key));
+
+        // --- UI ELEMENTS ---
+        const kpiDetailsContainer = document.getElementById('kpi-details');
+        const kpiDetailsPlaceholder = document.getElementById('kpi-details-placeholder');
+        const comparisonChartsContainer = document.getElementById('comparison-charts');
+        const radarCtx = document.getElementById('radar-chart').getContext('2d');
+        const citySelectionContainer = document.getElementById('city-selection-container');
+        const comparisonCitySelectionContainer = document.getElementById('comparison-city-selection-container');
+        const clearRadarSelectionBtn = document.getElementById('clear-radar-selection-btn');
+        const clearComparisonSelectionBtn = document.getElementById('clear-comparison-selection-btn');
+        let radarChart;
+
+        const chartColors = [
+            'rgba(54, 162, 235, 1)', 'rgba(255, 99, 132, 1)', 'rgba(75, 192, 192, 1)',
+            'rgba(255, 206, 86, 1)', 'rgba(153, 102, 255, 1)', 'rgba(255, 159, 64, 1)',
+            'rgba(201, 203, 207, 1)', 'rgba(50, 205, 50, 1)', 'rgba(218, 112, 214, 1)',
+            'rgba(0, 191, 255, 1)', 'rgba(255, 20, 147, 1)', 'rgba(255, 69, 0, 1)',
+            'rgba(138, 43, 226, 1)', 'rgba(0, 255, 127, 1)', 'rgba(210, 105, 30, 1)',
+            'rgba(127, 255, 0, 1)', 'rgba(106, 90, 205, 1)', 'rgba(255, 105, 180, 1)'
+        ];
+
+        // --- HELPER FUNCTIONS ---
+        function populateSelectors() {
+            cityNames.forEach((city, index) => {
+                const radarCheckboxId = `radar-city-checkbox-${index}`;
+                const comparisonCheckboxId = `comparison-city-checkbox-${index}`;
+                const checkboxHTML = `
+                    <div class="flex items-center">
+                        <input id="${radarCheckboxId}" type="checkbox" value="${city}" class="w-4 h-4 text-blue-600 bg-gray-100 border-gray-300 rounded focus:ring-blue-500 radar-checkbox">
+                        <label for="${radarCheckboxId}" class="ml-2 text-sm font-medium text-gray-900">${city}</label>
+                    </div>`;
+                const comparisonCheckboxHTML = `
+                     <div class="flex items-center">
+                        <input id="${comparisonCheckboxId}" type="checkbox" value="${city}" class="w-4 h-4 text-indigo-600 bg-gray-100 border-gray-300 rounded focus:ring-indigo-500 comparison-checkbox">
+                        <label for="${comparisonCheckboxId}" class="ml-2 text-sm font-medium text-gray-900">${city}</label>
+                    </div>`;
+                citySelectionContainer.innerHTML += checkboxHTML;
+                comparisonCitySelectionContainer.innerHTML += comparisonCheckboxHTML;
+            });
+        }
+
+        function getScoreColor(score) {
+            if (score >= 4) return 'bg-green-100 text-green-800';
+            if (score >= 3) return 'bg-yellow-100 text-yellow-800';
+            if (score >= 2) return 'bg-orange-100 text-orange-800';
+            return 'bg-red-100 text-red-800';
+        }
+
+        function getBarColor(score) {
+            if (score >= 4) return 'rgba(74, 222, 128, 0.7)'; // Green
+            if (score >= 3) return 'rgba(250, 204, 21, 0.7)'; // Yellow
+            if (score >= 2) return 'rgba(251, 146, 60, 0.7)'; // Orange
+            return 'rgba(239, 68, 68, 0.7)'; // Red
+        }
+
+        // --- CHART & UI RENDERING ---
+        function createSummaryCharts() {
+            const categories = {
+                'GEO': document.getElementById('summary-geo'),
+                'INF': document.getElementById('summary-inf'),
+                'PPL': document.getElementById('summary-ppl')
+            };
+
+            for (const cat in categories) {
+                const container = categories[cat];
+                const data = kpiData.filter(kpi => kpi.Code.startsWith(cat));
+                if (!container || data.length === 0) continue;
+                container.innerHTML = '';
+
+                data.forEach(kpi => {
+                    const chartContainer = document.createElement('div');
+                    chartContainer.className = 'border p-4 rounded-lg bg-gray-50 col-span-1 lg:col-span-2';
+                    chartContainer.innerHTML = `<h4 class="font-semibold text-center mb-2 text-sm">${kpi.Code}: ${kpi['KPI Name_TH']}</h4><div style="height: 450px;"><canvas></canvas></div>`;
+                    container.appendChild(chartContainer);
+
+                    const cityScores = cityNames.map(city => ({ city, score: kpi[city] }));
+                    cityScores.sort((a, b) => b.score - a.score);
+
+                    const sortedLabels = cityScores.map(item => item.city);
+                    const sortedData = cityScores.map(item => item.score);
+                    const backgroundColors = sortedData.map(score => getBarColor(score));
+
+                    new Chart(chartContainer.querySelector('canvas').getContext('2d'), {
+                        type: 'bar',
+                        data: {
+                            labels: sortedLabels,
+                            datasets: [{ label: 'คะแนน', data: sortedData, backgroundColor: backgroundColors }]
+                        },
+                        options: {
+                            indexAxis: 'y',
+                            responsive: true, maintainAspectRatio: false,
+                            scales: { x: { beginAtZero: true, max: 5, ticks: { stepSize: 1 } } },
+                            plugins: { legend: { display: false } }
+                        }
+                    });
+                });
+            }
+        }
+
+        function updateRadarDashboard() {
+            const selectedCities = Array.from(document.querySelectorAll('.radar-checkbox:checked')).map(cb => cb.value);
+
+            const datasets = selectedCities.map((city, index) => {
+                const color = chartColors[index % chartColors.length];
+                return {
+                    label: city, data: kpiData.map(kpi => kpi[city]),
+                    backgroundColor: color.replace('1)', '0.2)'), borderColor: color,
+                    borderWidth: 2, pointBackgroundColor: color
+                };
+            });
+
+            if (radarChart) radarChart.destroy();
+            radarChart = new Chart(radarCtx, {
+                type: 'radar',
+                data: { labels: kpiData.map(kpi => kpi.Code), datasets: datasets },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    scales: { r: { angleLines: { display: true }, suggestedMin: 0, suggestedMax: 5, pointLabels: { font: { size: 10 } }, ticks: { stepSize: 1 } } },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { callbacks: { label: (c) => `${c.dataset.label} - ${kpiData[c.dataIndex]['KPI Name_TH']}: ${c.formattedValue}` } }
+                    }
+                }
+            });
+
+            if (selectedCities.length === 1) {
+                kpiDetailsContainer.style.display = 'block';
+                kpiDetailsPlaceholder.style.display = 'none';
+                const selectedCity = selectedCities[0];
+                kpiDetailsContainer.innerHTML = '';
+                kpiData.forEach(kpi => {
+                    const score = kpi[selectedCity];
+                    const colorClasses = getScoreColor(score);
+                    kpiDetailsContainer.innerHTML += `
+                        <div class="p-3 rounded-lg flex justify-between items-center mb-2 ${colorClasses}">
+                            <div><p class="font-bold">${kpi.Code}</p><p class="text-sm">${kpi['KPI Name_TH']}</p></div>
+                            <div class="text-2xl font-bold">${score}</div>
+                        </div>`;
+                });
+            } else {
+                kpiDetailsContainer.style.display = 'none';
+                kpiDetailsPlaceholder.style.display = 'block';
+            }
+        }
+
+        function updateMultiCityComparison() {
+            const selectedCities = Array.from(document.querySelectorAll('.comparison-checkbox:checked')).map(cb => cb.value);
+            comparisonChartsContainer.innerHTML = '';
+
+            if (selectedCities.length < 2) {
+                comparisonChartsContainer.innerHTML = '<p class="text-center text-gray-600">กรุณาเลือกอย่างน้อย 2 เมืองเพื่อเปรียบเทียบ</p>';
+                return;
+            }
+
+            kpiData.forEach(kpi => {
+                const container = document.createElement('div');
+                container.className = 'p-4 border rounded-lg bg-gray-50';
+                container.innerHTML = `<h4 class="font-bold text-center mb-2">${kpi.Code}: ${kpi['KPI Name_TH']}</h4><div style="height: ${selectedCities.length * 30 + 40}px;"><canvas></canvas></div>`;
+                comparisonChartsContainer.appendChild(container);
+
+                const datasets = [{
+                    label: 'คะแนน',
+                    data: selectedCities.map(city => kpi[city]),
+                    backgroundColor: selectedCities.map((_, index) => chartColors[index % chartColors.length].replace('1)', '0.7)')),
+                }];
+
+                new Chart(container.querySelector('canvas').getContext('2d'), {
+                    type: 'bar',
+                    data: { labels: selectedCities, datasets: datasets },
+                    options: {
+                        indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                        scales: { x: { beginAtZero: true, max: 5, ticks: { stepSize: 1 } } },
+                        plugins: { legend: { display: false } }
+                    }
+                });
+            });
+        }
+
+        // --- EVENT LISTENERS & INITIALIZATION ---
+        citySelectionContainer.addEventListener('change', updateRadarDashboard);
+        comparisonCitySelectionContainer.addEventListener('change', updateMultiCityComparison);
+
+        clearRadarSelectionBtn.addEventListener('click', () => {
+            document.querySelectorAll('.radar-checkbox:checked').forEach(cb => cb.checked = false);
+            updateRadarDashboard();
+        });
+        clearComparisonSelectionBtn.addEventListener('click', () => {
+            document.querySelectorAll('.comparison-checkbox:checked').forEach(cb => cb.checked = false);
+            updateMultiCityComparison();
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+            populateSelectors();
+            createSummaryCharts();
+
+            // Set default selections
+            const firstRadarCheckbox = document.querySelector('.radar-checkbox');
+            if (firstRadarCheckbox) firstRadarCheckbox.checked = true;
+
+            const comparisonCheckboxes = document.querySelectorAll('.comparison-checkbox');
+            if (comparisonCheckboxes.length > 1) {
+                comparisonCheckboxes[0].checked = true;
+                comparisonCheckboxes[1].checked = true;
+            }
+
+            updateRadarDashboard();
+            updateMultiCityComparison();
+        });
+    </script>
+</body>
+
+</html>
